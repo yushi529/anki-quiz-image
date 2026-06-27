@@ -1,0 +1,88 @@
+<div id="q-source" style="display: none;">{{表面}}</div>
+<div id="q-display"></div>
+
+<hr id="answer">
+
+<div id="answer-area" style="opacity: 0; transition: opacity 0.3s;">
+{{裏面}}
+</div>
+
+<div id="timer-text" style="color: gray; font-size: 0.8em; margin-top: 15px; text-align: center;">
+解答表示まで: <span id="time-left">3</span>秒<br>
+(画面タップで全文と解答を表示)
+</div>
+
+<script>
+(() => {
+const SPEED = 120; // 表面と同じ数字にする
+
+// 表面のタイマーを確実に止める
+if (window.ankiTimer) clearInterval(window.ankiTimer);
+
+const source = document.getElementById('q-source');
+const display = document.getElementById('q-display');
+const answerArea = document.getElementById('answer-area');
+const timerText = document.getElementById('timer-text');
+const timeSpan = document.getElementById('time-left');
+
+if (!source || !display || !answerArea) return;
+
+const q = source.textContent;
+const total = Array.from(q).length;
+
+// 【メイン】表面でタップした瞬間の位置を読み取る
+const buzzRaw = sessionStorage.getItem('ankiBuzzIndex');
+
+let stopIndex;
+if (buzzRaw !== null) {
+  // タップで止めた場合：直接記録した位置を使う（ラグ補正不要）
+  stopIndex = parseInt(buzzRaw, 10);
+} else {
+  // 【フォールバック】タップせずめくった場合：従来どおり時間から逆算
+  const startTime = parseInt(sessionStorage.getItem('ankiStartTime') || Date.now(), 10);
+  const elapsed = Math.max(0, Date.now() - startTime);
+  stopIndex = Math.floor(elapsed / SPEED);
+}
+
+// 念のため範囲内に収める
+stopIndex = Math.max(0, Math.min(stopIndex, total));
+
+display.innerHTML = '';
+const spans = Array.from(q).map((c, i) => {
+  const span = document.createElement('span');
+  span.textContent = c;
+  span.style.visibility = i <= stopIndex ? 'visible' : 'hidden';
+  display.appendChild(span);
+  return span;
+});
+
+const waitTime = 3;
+let timeLeft = waitTime;
+
+const showFullAndAnswer = () => {
+  if (answerArea.style.opacity === '1') return;
+
+  spans.forEach(span => span.style.visibility = 'visible');
+  answerArea.style.opacity = '1';
+  timerText.style.display = 'none';
+
+  if (window.ankiCountdown) clearInterval(window.ankiCountdown);
+  document.removeEventListener('click', showFullAndAnswer);
+  document.removeEventListener('touchstart', showFullAndAnswer);
+};
+
+if (window.ankiCountdown) clearInterval(window.ankiCountdown);
+window.ankiCountdown = setInterval(() => {
+  timeLeft--;
+  if (timeSpan) timeSpan.textContent = timeLeft;
+  if (timeLeft <= 0) {
+    showFullAndAnswer();
+  }
+}, 1000);
+
+setTimeout(() => {
+  document.addEventListener('click', showFullAndAnswer);
+  document.addEventListener('touchstart', showFullAndAnswer);
+}, 300);
+})();
+</script>

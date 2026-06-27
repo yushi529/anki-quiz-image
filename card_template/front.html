@@ -1,0 +1,51 @@
+<div id="q-source" style="display: none;">{{表面}}</div>
+<div id="q-display"></div>
+
+<script>
+(() => {
+const SPEED = 120; // 1文字表示するミリ秒数
+
+// 過去のカードの暴走タイマーが残っていたら強制終了する
+if (window.ankiTimer) clearInterval(window.ankiTimer);
+
+const source = document.getElementById('q-source');
+const display = document.getElementById('q-display');
+if (!source || !display) return;
+
+const q = source.textContent;
+display.innerHTML = '';
+
+const spans = Array.from(q).map(c => {
+  const span = document.createElement('span');
+  span.textContent = c;
+  span.style.visibility = 'hidden';
+  display.appendChild(span);
+  return span;
+});
+
+// 開始時刻を記録（フォールバック用）
+sessionStorage.setItem('ankiStartTime', Date.now());
+// 前のカードの押下位置が残らないよう消しておく
+sessionStorage.removeItem('ankiBuzzIndex');
+
+let currentIndex = 0;
+window.ankiTimer = setInterval(() => {
+  if (currentIndex >= spans.length) {
+    clearInterval(window.ankiTimer);
+    return;
+  }
+  spans[currentIndex].style.visibility = 'visible';
+  currentIndex++;
+}, SPEED);
+
+// タップした瞬間の currentIndex を直接保存する
+const onBuzz = () => {
+  // 表示が進む前の位置を押下点とする
+  sessionStorage.setItem('ankiBuzzIndex', currentIndex);
+  document.removeEventListener('touchstart', onBuzz);
+  document.removeEventListener('click', onBuzz);
+};
+document.addEventListener('touchstart', onBuzz);
+document.addEventListener('click', onBuzz);
+})();
+</script>
