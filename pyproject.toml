@@ -1,0 +1,9 @@
+[project]
+name = "anki-quiz-image"
+version = "0.1.0"
+description = "Anki クイズ画像 半自動付与アドオン"
+requires-python = ">=3.11"
+dependencies = [
+    "google-genai>=1.0.0",
+    "python-dotenv>=1.0.0",
+]
