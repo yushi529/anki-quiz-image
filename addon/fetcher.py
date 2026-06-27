@@ -50,6 +50,13 @@ def run(card) -> None:
             wikipedia_title_en=entity.wikipedia_title_en,
             commons_queries=entity.commons_queries,
         )
+        for rel in entity.related:
+            candidates.extend(image_sources.fetch_candidates(
+                entity_name=rel.entity_name,
+                wikipedia_title_ja=rel.wikipedia_title_ja,
+                wikipedia_title_en=rel.wikipedia_title_en,
+                commons_queries=rel.commons_queries,
+            ))
         candidates = candidates[:max_cand]
 
         thumb_data: dict[str, bytes | None] = {}

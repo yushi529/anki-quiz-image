@@ -27,15 +27,31 @@ from llm import identify_entity
 
 
 def load_cards(path: str) -> list[dict]:
+    """Load cards from CSV/TSV or Anki plain-text export (with # metadata headers)."""
     p = Path(path)
-    dialect = "excel-tab" if p.suffix in (".tsv", ".txt") else "excel"
     with open(p, encoding="utf-8", newline="") as f:
-        return list(csv.DictReader(f, dialect=dialect))
+        lines = f.readlines()
+
+    # Detect Anki export format (lines starting with #)
+    meta_lines = [l for l in lines if l.startswith("#")]
+    data_lines = [l for l in lines if not l.startswith("#") and l.strip()]
+
+    if meta_lines:
+        # Anki export: tab-separated, no header row, columns are 表面/裏面/[tags]
+        reader = csv.reader(data_lines, dialect="excel-tab")
+        return [{"表面": row[0], "裏面": row[1]} for row in reader if len(row) >= 2]
+
+    dialect = "excel-tab" if p.suffix in (".tsv", ".txt") else "excel"
+    reader = csv.DictReader(data_lines, dialect=dialect)
+    return list(reader)
 
 
 def extract_answer(back_field: str) -> str:
-    """Take the first line of the back field as the answer."""
-    return back_field.split("\n")[0].split("<br>")[0].strip()
+    """Take the first line of the back field as the answer, stripping HTML."""
+    import re
+    text = back_field.split("\n")[0].split("<br>")[0]
+    text = re.sub(r"<[^>]+>", "", text)  # strip HTML tags
+    return text.strip()
 
 
 def process_card(card: dict) -> dict:
@@ -60,6 +76,11 @@ def process_card(card: dict) -> dict:
             "commons_queries": entity.commons_queries,
             "confidence": entity.confidence,
             "wikipedia_url": entity.wikipedia_url,
+            "related": [
+                {"name": r.entity_name, "wikipedia_title_ja": r.wikipedia_title_ja,
+                 "wikipedia_title_en": r.wikipedia_title_en}
+                for r in entity.related
+            ],
         }
 
         candidates = fetch_candidates(
@@ -68,6 +89,13 @@ def process_card(card: dict) -> dict:
             wikipedia_title_en=entity.wikipedia_title_en,
             commons_queries=entity.commons_queries,
         )
+        for rel in entity.related:
+            candidates.extend(fetch_candidates(
+                entity_name=rel.entity_name,
+                wikipedia_title_ja=rel.wikipedia_title_ja,
+                wikipedia_title_en=rel.wikipedia_title_en,
+                commons_queries=rel.commons_queries,
+            ))
         result["candidates"] = [
             {"url": c.url, "thumb_url": c.thumb_url, "source": c.source, "title": c.title}
             for c in candidates
